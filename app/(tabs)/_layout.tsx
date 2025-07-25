@@ -29,53 +29,72 @@ export default function TabLayout() {
           },
           default: {},
         }),
-      }}>
+      }}
+    >
+      {/* Tab Principal (Home) - Para ambos os tipos */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: isCustomer ? 'Meus Cartões' : 'Dashboard',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol
+              size={28}
+              name="house.fill"
+              color={color}
+            />
+          ),
+        }}
+      />
 
-      {/* Tabs para Cliente */}
+      {/* Tab Perfil/Configurações - Para Clientes */}
       {isCustomer && (
-        <>
-          <Tabs.Screen
-            name="index"
-            options={{
-              title: 'Meus Cartões',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: 'Perfil',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="chevron.right" color={color} />,
-            }}
-          />
-        </>
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Perfil',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol
+                size={28}
+                name="chevron.right"
+                color={color}
+              />
+            ),
+          }}
+        />
       )}
 
-      {/* Tabs para Lojista */}
+      {/* Tab Loja - Para Lojistas */}
       {isMerchant && (
-        <>
-          <Tabs.Screen
-            name="index"
-            options={{
-              title: 'Dashboard',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-            }}
-          />
-          <Tabs.Screen
-            name="notifications"
-            options={{
-              title: 'Notificações',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-            }}
-          />
-          <Tabs.Screen
-            name="store"
-            options={{
-              title: 'Loja',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="chevron.left.forwardslash.chevron.right" color={color} />,
-            }}
-          />
-        </>
+        <Tabs.Screen
+          name="store"
+          options={{
+            title: 'Minha Loja',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol
+                size={28}
+                name="chevron.left.forwardslash.chevron.right"
+                color={color}
+              />
+            ),
+          }}
+        />
+      )}
+
+      {/* Tab Notificações - Para Lojistas */}
+      {isMerchant && (
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            title: 'Notificar',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol
+                size={28}
+                name="paperplane.fill"
+                color={color}
+              />
+            ),
+          }}
+        />
       )}
 
       {/* Esconder tabs que não devem aparecer */}

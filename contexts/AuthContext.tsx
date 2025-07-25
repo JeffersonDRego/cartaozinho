@@ -14,14 +14,15 @@ export interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
-    login: (phone: string, name?: string) => Promise<boolean>;
+    pushToken: string | null;
+    login: (phone: string, name?: string, userType?: 'customer' | 'merchant') => Promise<boolean>;
     logout: () => Promise<void>;
-    isAuthenticated: boolean;
+    testPushNotification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Configure notifications
+// 🔔 CONFIGURAÇÃO DAS PUSH NOTIFICATIONS
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
@@ -32,154 +33,138 @@ Notifications.setNotificationHandler({
     }),
 });
 
+// ⚠️ ALTERE ESTA URL PARA SEU SERVIDOR!
+const API_URL = 'https://appcartaozinho-servercartaozinho.5gttis.easypanel.host/api';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [pushToken, setPushToken] = useState<string | null>(null);
 
     useEffect(() => {
-        loadUser();
-        registerForPushNotifications();
+        initializeAuth();
     }, []);
 
-    // ⚠️ SUBSTITUA ESTA URL PELA URL REAL DO SEU SERVIDOR NO EASYPANEL
-    const API_URL = 'https://appcartaozinho-servercartaozinho.5gttis.easypanel.host/api'; // 🔥 MUDE AQUI!
-
-    // 🐛 DEBUG: Mostrar URL sendo usada
-    console.log('🌐 API_URL sendo usada:', API_URL);
-
-    const registerForPushNotifications = async () => {
-        if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync('default', {
-                name: 'default',
-                importance: Notifications.AndroidImportance.MAX,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#FF231F7C',
-            });
-        }
-
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('Failed to get push token for push notification!');
-            return;
-        }
-
+    const initializeAuth = async () => {
         try {
-            const token = (await Notifications.getExpoPushTokenAsync()).data;
-            console.log('🔔 Push token obtido:', token);
-            return token;
-        } catch (error) {
-            console.log('Error getting push token:', error);
-        }
-    };
-
-    const loadUser = async () => {
-        try {
+            // Carregar usuário salvo
             const userData = await AsyncStorage.getItem('user');
             if (userData) {
                 setUser(JSON.parse(userData));
-                console.log('👤 Usuário carregado do storage');
             }
+
+            // Configurar push notifications
+            await setupPushNotifications();
         } catch (error) {
-            console.error('Error loading user:', error);
+            console.error('❌ Erro na inicialização:', error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const login = async (phone: string, name?: string): Promise<boolean> => {
+    const setupPushNotifications = async () => {
+        try {
+            // Configurar canal Android
+            if (Platform.OS === 'android') {
+                await Notifications.setNotificationChannelAsync('default', {
+                    name: 'Cartãozinho',
+                    importance: Notifications.AndroidImportance.MAX,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#0a7ea4',
+                    sound: 'default',
+                });
+            }
+
+            // Pedir permissão
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                console.log('❌ Permissão para notificações negada');
+                return;
+            }
+
+            // Obter token
+            const token = await Notifications.getExpoPushTokenAsync({
+                projectId: '3b6a9ecc-ae4b-4afb-bf3d-311ef07631a8', // Seu Project ID do EAS
+            });
+
+            setPushToken(token.data);
+            console.log('✅ Push token obtido:', token.data);
+
+            // Listener para notificações recebidas
+            Notifications.addNotificationReceivedListener(notification => {
+                console.log('📨 Notificação recebida:', notification);
+            });
+
+            // Listener para quando usuário toca na notificação
+            Notifications.addNotificationResponseReceivedListener(response => {
+                console.log('👆 Notificação tocada:', response);
+                // Aqui você pode navegar para telas específicas baseado na notificação
+            });
+
+        } catch (error) {
+            console.error('❌ Erro na configuração de push:', error);
+        }
+    };
+
+    const login = async (phone: string, name?: string, userType: 'customer' | 'merchant' = 'customer'): Promise<boolean> => {
         setIsLoading(true);
-        console.log('🔐 Tentando login/cadastro...');
-        console.log('📱 Telefone:', phone);
-        console.log('👤 Nome:', name);
-        console.log('🌐 URL:', API_URL);
+        console.log('🔐 Tentando login...', { phone, name, userType });
 
         try {
-            // 🐛 DEBUG: Testar se a URL está acessível
-            console.log('🌐 Testando conectividade...');
-
-            // Primeiro, tenta fazer login
-            console.log('🔐 Tentando login...');
+            // Primeiro, tentar login
             let response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({ phone }),
             });
 
-            console.log('📡 Status da resposta login:', response.status);
-
-            // Se usuário não existe e tem nome, faz cadastro
+            // Se usuário não existe e tem nome, fazer cadastro
             if (response.status === 404 && name) {
                 console.log('👤 Usuário não encontrado, fazendo cadastro...');
-                const pushToken = await registerForPushNotifications();
 
                 response = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
                     },
                     body: JSON.stringify({
                         phone,
                         name,
-                        expo_push_token: pushToken,
-                        user_type: 'customer' // Default para customer
+                        user_type: userType,
+                        expo_push_token: pushToken
                     }),
                 });
-
-                console.log('📡 Status da resposta cadastro:', response.status);
             }
 
             if (response.ok) {
                 const userData = await response.json();
-                console.log('✅ Login/cadastro bem-sucedido:', userData);
+                console.log('✅ Login/cadastro sucesso:', userData);
+
                 setUser(userData);
                 await AsyncStorage.setItem('user', JSON.stringify(userData));
+
                 return true;
             } else {
-                const errorText = await response.text();
-                console.error('❌ Erro na resposta:', response.status, errorText);
-
-                // Mostrar erro mais detalhado
-                Alert.alert(
-                    'Erro de Conexão',
-                    `Status: ${response.status}\nDetalhes: ${errorText}\nURL: ${API_URL}`
-                );
+                const errorData = await response.json();
+                Alert.alert('Erro', errorData.error || 'Erro no login');
                 return false;
             }
 
         } catch (error) {
             console.error('💥 Erro de rede:', error);
-
-            // Debug detalhado do erro
-            if (error instanceof TypeError && error.message.includes('Network request failed')) {
-                Alert.alert(
-                    'Erro de Rede',
-                    `Não foi possível conectar ao servidor.\n\n` +
-                    `URL: ${API_URL}\n\n` +
-                    `Possíveis causas:\n` +
-                    `• Servidor offline\n` +
-                    `• URL incorreta\n` +
-                    `• Bloqueio de firewall\n` +
-                    `• Problema de CORS\n\n` +
-                    `Erro: ${error.message}`
-                );
-            } else {
-                const errorMessage = typeof error === 'object' && error !== null && 'message' in error
-                    ? String((error as { message?: unknown }).message)
-                    : String(error);
-                Alert.alert('Erro', `Erro inesperado: ${errorMessage}`);
-            }
-
+            Alert.alert(
+                'Erro de Conexão',
+                'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'
+            );
             return false;
         } finally {
             setIsLoading(false);
@@ -192,20 +177,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             console.log('👋 Logout realizado');
         } catch (error) {
-            console.error('Logout error:', error);
+            console.error('❌ Erro no logout:', error);
+        }
+    };
+
+    const testPushNotification = async () => {
+        if (!pushToken) {
+            Alert.alert('Erro', 'Token de push não disponível');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/test/push`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    expo_push_token: pushToken,
+                    title: '🧪 Teste do Cartãozinho',
+                    message: `Olá ${user?.name || 'usuário'}! Push notifications funcionando! 🎉`
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Alert.alert('✅ Sucesso!', 'Push notification enviado! Verifique se chegou.');
+            } else {
+                Alert.alert('❌ Erro', result.message || 'Falha ao enviar push');
+            }
+        } catch (error) {
+            console.error('❌ Erro no teste de push:', error);
+            Alert.alert('Erro', 'Erro ao testar push notification');
         }
     };
 
     return (
-        <AuthContext.Provider
-            value={{
-                user,
-                isLoading,
-                login,
-                logout,
-                isAuthenticated: !!user,
-            }}
-        >
+        <AuthContext.Provider value={{
+            user,
+            isLoading,
+            pushToken,
+            login,
+            logout,
+            testPushNotification,
+        }}>
             {children}
         </AuthContext.Provider>
     );
@@ -214,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
     const context = useContext(AuthContext);
     if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
+        throw new Error('useAuth deve ser usado dentro de AuthProvider');
     }
     return context;
 }

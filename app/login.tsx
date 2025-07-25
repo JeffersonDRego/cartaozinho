@@ -1,4 +1,3 @@
-// import { ConnectivityTest } from '@/components/ConnectivityTest';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,17 +18,15 @@ import {
 export default function LoginScreen() {
     const [phone, setPhone] = useState('');
     const [name, setName] = useState('');
-    const [showNameInput, setShowNameInput] = useState(false);
     const [userType, setUserType] = useState<'customer' | 'merchant'>('customer');
+    const [showNameInput, setShowNameInput] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const { login } = useAuth();
 
+    // Formatar telefone: (XX) XXXXX-XXXX
     const formatPhone = (text: string) => {
-        // Remove tudo que não é número
         const numbers = text.replace(/\D/g, '');
-
-        // Aplica máscara (XX) XXXXX-XXXX
         if (numbers.length <= 11) {
             let formatted = numbers;
             if (numbers.length >= 3) {
@@ -45,27 +42,27 @@ export default function LoginScreen() {
 
     const handlePhoneSubmit = async () => {
         if (phone.length < 14) { // (XX) XXXXX-XXXX
-            Alert.alert('Erro', 'Por favor, digite um telefone válido');
+            Alert.alert('Erro', 'Digite um telefone válido');
             return;
         }
 
         setIsLoading(true);
 
-        // Limpa formatação do telefone para enviar ao backend
+        // Converter para formato internacional
         const cleanPhone = '+55' + phone.replace(/\D/g, '');
 
         try {
             const success = await login(cleanPhone);
 
-            if (!success) {
+            if (success) {
+                // Login bem-sucedido, navegar para as tabs
+                router.replace('/(tabs)');
+            } else {
                 // Usuário não encontrado, mostrar campo de nome
                 setShowNameInput(true);
-            } else {
-                // Login realizado com sucesso
-                router.replace('/(tabs)');
             }
         } catch (error) {
-            Alert.alert('Erro', 'Ocorreu um erro. Tente novamente.');
+            console.error('Erro no login:', error);
         } finally {
             setIsLoading(false);
         }
@@ -73,7 +70,7 @@ export default function LoginScreen() {
 
     const handleRegister = async () => {
         if (!name.trim()) {
-            Alert.alert('Erro', 'Por favor, digite seu nome');
+            Alert.alert('Erro', 'Digite seu nome');
             return;
         }
 
@@ -82,23 +79,22 @@ export default function LoginScreen() {
         const cleanPhone = '+55' + phone.replace(/\D/g, '');
 
         try {
-            const success = await login(cleanPhone, name.trim());
+            const success = await login(cleanPhone, name.trim(), userType);
 
             if (success) {
                 router.replace('/(tabs)');
-            } else {
-                Alert.alert('Erro', 'Não foi possível criar sua conta. Tente novamente.');
             }
         } catch (error) {
-            Alert.alert('Erro', 'Ocorreu um erro. Tente novamente.');
+            console.error('Erro no cadastro:', error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleBackToPhone = () => {
+    const resetForm = () => {
         setShowNameInput(false);
         setName('');
+        setPhone('');
     };
 
     return (
@@ -108,33 +104,40 @@ export default function LoginScreen() {
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>
                 <ThemedView style={styles.content}>
+                    {/* Header */}
                     <View style={styles.header}>
                         <ThemedText type="title" style={styles.title}>
-                            Cartãozinho APP
+                            🎫 Cartãozinho
                         </ThemedText>
                         <ThemedText style={styles.subtitle}>
                             Seu cartão fidelidade digital
                         </ThemedText>
                     </View>
 
+                    {/* Form */}
                     {!showNameInput ? (
+                        // Tela de Telefone
                         <View style={styles.form}>
-                            <ThemedText type="subtitle" style={styles.label}>
-                                Digite seu telefone
+                            <ThemedText type="subtitle" style={styles.formTitle}>
+                                Entre com seu telefone
                             </ThemedText>
 
-                            <TextInput
-                                style={styles.input}
-                                placeholder="(11) 99999-9999"
-                                value={phone}
-                                onChangeText={(text) => setPhone(formatPhone(text))}
-                                keyboardType="phone-pad"
-                                maxLength={15}
-                                autoFocus
-                            />
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Telefone</ThemedText>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="(11) 99999-9999"
+                                    value={phone}
+                                    onChangeText={(text) => setPhone(formatPhone(text))}
+                                    keyboardType="phone-pad"
+                                    maxLength={15}
+                                    autoFocus
+                                />
+                            </View>
 
-                            <View style={styles.userTypeContainer}>
-                                <ThemedText style={styles.label}>Você é:</ThemedText>
+                            {/* Tipo de Usuário */}
+                            <View style={styles.userTypeSection}>
+                                <ThemedText style={styles.inputLabel}>Você é:</ThemedText>
                                 <View style={styles.userTypeButtons}>
                                     <TouchableOpacity
                                         style={[
@@ -143,13 +146,11 @@ export default function LoginScreen() {
                                         ]}
                                         onPress={() => setUserType('customer')}
                                     >
-                                        <ThemedText
-                                            style={[
-                                                styles.userTypeButtonText,
-                                                userType === 'customer' && styles.userTypeButtonTextActive,
-                                            ]}
-                                        >
-                                            Cliente
+                                        <ThemedText style={[
+                                            styles.userTypeButtonText,
+                                            userType === 'customer' && styles.userTypeButtonTextActive,
+                                        ]}>
+                                            👤 Cliente
                                         </ThemedText>
                                     </TouchableOpacity>
 
@@ -160,22 +161,20 @@ export default function LoginScreen() {
                                         ]}
                                         onPress={() => setUserType('merchant')}
                                     >
-                                        <ThemedText
-                                            style={[
-                                                styles.userTypeButtonText,
-                                                userType === 'merchant' && styles.userTypeButtonTextActive,
-                                            ]}
-                                        >
-                                            Lojista
+                                        <ThemedText style={[
+                                            styles.userTypeButtonText,
+                                            userType === 'merchant' && styles.userTypeButtonTextActive,
+                                        ]}>
+                                            🏪 Lojista
                                         </ThemedText>
                                     </TouchableOpacity>
                                 </View>
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.button, isLoading && styles.buttonDisabled]}
+                                style={[styles.button, styles.buttonPrimary, isLoading && styles.buttonDisabled]}
                                 onPress={handlePhoneSubmit}
-                                disabled={isLoading}
+                                disabled={isLoading || phone.length < 14}
                             >
                                 {isLoading ? (
                                     <ActivityIndicator color="#fff" />
@@ -185,35 +184,49 @@ export default function LoginScreen() {
                             </TouchableOpacity>
                         </View>
                     ) : (
+                        // Tela de Cadastro
                         <View style={styles.form}>
-                            <ThemedText type="subtitle" style={styles.label}>
-                                Primeiro acesso
+                            <ThemedText type="subtitle" style={styles.formTitle}>
+                                Primeiro acesso 🎉
                             </ThemedText>
                             <ThemedText style={styles.description}>
-                                Digite seu nome para criar sua conta
+                                Parece que é seu primeiro acesso! Digite seu nome para criar sua conta.
                             </ThemedText>
 
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Seu nome completo"
-                                value={name}
-                                onChangeText={setName}
-                                autoFocus
-                                autoCapitalize="words"
-                            />
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Nome completo</ThemedText>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Digite seu nome"
+                                    value={name}
+                                    onChangeText={setName}
+                                    autoFocus
+                                    autoCapitalize="words"
+                                />
+                            </View>
+
+                            <View style={styles.selectedUserType}>
+                                <ThemedText style={styles.selectedUserTypeLabel}>
+                                    Conta: {userType === 'customer' ? '👤 Cliente' : '🏪 Lojista'}
+                                </ThemedText>
+                                <ThemedText style={styles.selectedUserTypePhone}>
+                                    📱 {phone}
+                                </ThemedText>
+                            </View>
 
                             <View style={styles.buttonGroup}>
                                 <TouchableOpacity
                                     style={[styles.button, styles.buttonSecondary]}
-                                    onPress={handleBackToPhone}
+                                    onPress={resetForm}
+                                    disabled={isLoading}
                                 >
-                                    <ThemedText style={styles.buttonSecondaryText}>Voltar</ThemedText>
+                                    <ThemedText style={styles.buttonSecondaryText}>← Voltar</ThemedText>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
                                     style={[styles.button, styles.buttonPrimary, isLoading && styles.buttonDisabled]}
                                     onPress={handleRegister}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !name.trim()}
                                 >
                                     {isLoading ? (
                                         <ActivityIndicator color="#fff" />
@@ -225,14 +238,12 @@ export default function LoginScreen() {
                         </View>
                     )}
 
+                    {/* Footer */}
                     <View style={styles.footer}>
                         <ThemedText style={styles.footerText}>
-                            Ao continuar, você concorda com nossos termos de uso e política de privacidade
+                            Ao continuar, você concorda com nossos termos de uso e política de privacidade.
                         </ThemedText>
                     </View>
-
-                    {/* Teste de Conectividade para Debug */}
-                    {/* <ConnectivityTest /> */}
                 </ThemedView>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -245,50 +256,65 @@ const styles = StyleSheet.create({
     },
     scrollContainer: {
         flexGrow: 1,
+        justifyContent: 'center',
+        minHeight: '100%',
     },
     content: {
         flex: 1,
         justifyContent: 'center',
-        padding: 20,
+        padding: 24,
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 48,
     },
     title: {
-        fontSize: 32,
+        fontSize: 36,
         fontWeight: 'bold',
-        marginBottom: 8,
         color: '#0a7ea4',
+        marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
         opacity: 0.7,
+        textAlign: 'center',
     },
     form: {
-        marginBottom: 40,
+        marginBottom: 48,
     },
-    label: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 12,
+    formTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        textAlign: 'center',
     },
     description: {
         fontSize: 14,
         opacity: 0.7,
-        marginBottom: 16,
+        textAlign: 'center',
+        marginBottom: 32,
+        lineHeight: 20,
+    },
+    inputGroup: {
+        marginBottom: 24,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+        color: '#333',
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
+        borderWidth: 2,
+        borderColor: '#e1e1e1',
         borderRadius: 12,
         padding: 16,
         fontSize: 16,
-        marginBottom: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#f9f9f9',
+        fontWeight: '500',
     },
-    userTypeContainer: {
-        marginBottom: 20,
+    userTypeSection: {
+        marginBottom: 32,
     },
     userTypeButtons: {
         flexDirection: 'row',
@@ -296,40 +322,60 @@ const styles = StyleSheet.create({
     },
     userTypeButton: {
         flex: 1,
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#e1e1e1',
+        backgroundColor: '#f9f9f9',
         alignItems: 'center',
     },
     userTypeButtonActive: {
-        backgroundColor: '#0a7ea4',
         borderColor: '#0a7ea4',
+        backgroundColor: '#f0f8ff',
     },
     userTypeButtonText: {
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: '600',
+        color: '#666',
     },
     userTypeButtonTextActive: {
-        color: '#fff',
+        color: '#0a7ea4',
     },
-    button: {
-        backgroundColor: '#0a7ea4',
+    selectedUserType: {
+        backgroundColor: '#f0f8ff',
         padding: 16,
         borderRadius: 12,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#0a7ea4',
+    },
+    selectedUserTypeLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#0a7ea4',
+        marginBottom: 4,
+    },
+    selectedUserTypePhone: {
+        fontSize: 14,
+        color: '#666',
+    },
+    button: {
+        borderRadius: 12,
+        padding: 16,
         alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 52,
     },
     buttonPrimary: {
-        flex: 1,
+        backgroundColor: '#0a7ea4',
     },
     buttonSecondary: {
         backgroundColor: 'transparent',
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: '#0a7ea4',
-        flex: 1,
     },
     buttonDisabled: {
-        opacity: 0.6,
+        opacity: 0.5,
     },
     buttonText: {
         color: '#fff',
@@ -353,5 +399,6 @@ const styles = StyleSheet.create({
         opacity: 0.6,
         textAlign: 'center',
         lineHeight: 16,
+        maxWidth: 280,
     },
 });

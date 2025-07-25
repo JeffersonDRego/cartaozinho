@@ -364,7 +364,7 @@ export default function HomeScreen() {
         </>
       )}
 
-      <FlatList
+      <FlatList<any>
         data={isCustomer ? cards : customers}
         renderItem={isCustomer ? renderCard : renderCustomer}
         keyExtractor={(item) => item.id.toString()}
