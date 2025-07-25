@@ -16,7 +16,9 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "googleServicesFile": "./google-services.json",
+      "edgeToEdgeEnabled": true,
+      "package": "com.jeffersondrego.cartaozinho"
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +39,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3b6a9ecc-ae4b-4afb-bf3d-311ef07631a8"
+      }
+    },
+    "owner": "jeffersondrego"
   }
 }
